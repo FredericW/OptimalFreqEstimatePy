@@ -29,11 +29,16 @@ def GenRandResp(eps,x_grid):
 def EM(M, a_count, eps):
     tau = 1e-3*np.exp(eps)
     _,d= M.shape
+    np.reshape(a_count, (len(a_count),1))
     p = np.ones((d,1))/d
-    np.reshape(a_count, (d,1))
+    L_p = np.matmul(a_count,np.log(np.matmul(M,p)))
     while 1:
-        temp = p*np.matmul(a_count.T,(M/(M*p))).T
+        temp = p*np.reshape(np.matmul(a_count,(M/np.matmul(M,p))),(d,1))
         p=temp/np.sum(temp)
-        L = a_count.T*
+        L = np.matmul(a_count,np.log(np.matmul(M,p)))
+        if np.abs(L-L_p)< tau:
+            break
+        L_p=L
+    return p
 
     
