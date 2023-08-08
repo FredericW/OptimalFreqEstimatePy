@@ -57,7 +57,7 @@ def WassDist(p1,p2):
     return dist
 
 def Pmf2Cmf(pmf):
-    cmf = pmf
+    cmf = pmf.copy()
     for i in range(len(pmf)):
         cmf[i] = cmf[i-1]+cmf[i]
     return cmf
