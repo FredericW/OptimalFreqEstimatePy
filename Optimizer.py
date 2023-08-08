@@ -2,11 +2,11 @@ import numpy as np
 import scipy as sp
 from scipy.optimize import linprog
 
-def OptVariance(eps,a_grid,x_q): # the optimization problem
-    da = len(a_grid)
-    dx = len(x_q)
+def OptVariance(eps,x_grid,x_q): # the optimization problem
+    a_grid = x_grid # we may change this in later update version
+    da = a_grid.size
+    dx = x_grid.size
     eEps = np.exp(eps)
-    x_grid = a_grid # we may change this in later update version
     
     # the inequality constraints
     A_ub = np.zeros((da*(dx-1)*dx,da*dx)) # coefficient matrix
@@ -31,21 +31,18 @@ def OptVariance(eps,a_grid,x_q): # the optimization problem
         A_eq[j,:] = np.reshape(temp, (1,da*dx))
     for i in range(da):
         temp = np.zeros((da,dx))
-        temp[i,:] = x_q
-        A_eq[dx+i] = np.reshape(temp,(1,da*dx))
-    print(x_q.shape)
-    b_eq = np.concatenate((np.ones((1,dx)),x_q),axis=None)
-    print(b_eq)
-
+        temp[i,:] = np.reshape(x_q,(1,dx))
+        A_eq[dx+i,:] = np.reshape(temp,(1,da*dx))
+    b_eq = np.concatenate((np.ones((1,dx)),x_q),axis = None) # limit vector
 
     # the obejetive funciton
     C = np.zeros((da,dx))
     for j in range(dx):
-        C[:,j] = np.power(a_grid-x_grid[j],2)*x_q[j] # we want minimal conditional variance
+        C[:,j] = np.power(a_grid-x_grid[j],2)*x_q[0,j] # minimal cond. variance
     C = np.reshape(C,(1,da*dx))
     
     # limites
     bounds = list(zip(np.zeros(da*dx),np.ones(da*dx)))
     res = linprog(C, A_ub=A_ub, b_ub=b_ub, A_eq = A_eq, b_eq = b_eq, bounds=bounds)
     M = np.reshape(res.x,(da,dx))
-    return M
+    return a_grid, M
