@@ -41,4 +41,25 @@ def EM(M, a_count, eps):
         L_p=L
     return p
 
+def M2Var(M,a_grid,x_grid,x_q):
+    dx = x_grid.size
+    da = a_grid.size
+    Xsq = np.zeros((da,dx))
+    for i in range(dx): # this can be done by numpy matrix, I am just lazy.
+        Xsq[:,i] = np.power(a_grid-x_grid[i],2)*x_q[i]
+    var = np.sum(Xsq*M)
+    return var
+    
+def WassDist(p1,p2):
+    P_1 = Pmf2Cmf(p1)
+    P_2 = Pmf2Cmf(p2)
+    dist = np.sum(np.abs(P_1-P_2))
+    return dist
+
+def Pmf2Cmf(pmf):
+    cmf = pmf
+    for i in range(len(pmf)):
+        cmf[i] = cmf[i-1]+cmf[i]
+    return cmf
+
     
