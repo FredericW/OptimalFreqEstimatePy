@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import random
 
 def SquareWave(eps, x_grid):
     d = len(x_grid)
