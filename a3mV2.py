@@ -46,5 +46,3 @@ def OptVariance(eps,x_grid,x_q): # the optimization problem
     res = linprog(C, A_ub=A_ub, b_ub=b_ub, A_eq = A_eq, b_eq = b_eq, bounds=bounds)
     M = np.reshape(res.x,(da,dx))
     return a_grid, M
-
-def Est2thenA3M()

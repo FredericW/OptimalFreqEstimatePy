@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import random
 
 def generate_synthetic_data(data_type="GAUSSIAN", n=100000, low=0, high=1, beta=1):
     # generate data
