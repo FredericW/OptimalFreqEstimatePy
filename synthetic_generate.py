@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-def generate_synthetic_data(data_type, n=100000, low=0, high=1, beta=1):
+def generate_synthetic_data(data_type="GAUSSIAN", n=100000, low=0, high=1, beta=1):
     # generate data
 
     if data_type == "GAUSSIAN":
