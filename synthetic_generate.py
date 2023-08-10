@@ -44,7 +44,7 @@ def generate_synthetic_data(data_type="GAUSSIAN",
 
 def generate_perturbed_pool(M, a_grid, N_pool):
     _,dx =M.shape
-    perturbed_pool = np.zeros((N,dx))
+    perturbed_pool = np.zeros((N_pool,dx))
     for j in range(dx):
         p=M[:,j]/np.sum(M[:,j])
         perturbed_pool[:,j] = np.random.choice(a=a_grid,p=p,size=N_pool)
@@ -71,10 +71,10 @@ def estimate_distribution(eps,est_type,M,histo_true,pool,repeat):
 
 
 def DP_dist_estimation(data, bins, bin_idxs, range, 
-                       est_type, eps, est_repeat, test_repeat,N_pool=10000):
+                       est_type, eps, est_repeat, test_repeat):
     print('eps=',eps)
     histo_true,_ = np.histogram(a=data, range=range, bins=bins)
-
+    N_pool = bins*10000
     if est_type == 'sw':
         a_grid, M_est = utilities.square_wave(eps,bin_idxs)
     elif est_type == 'grr':
@@ -96,10 +96,11 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     print('AAA solution found.')
 
     perturbed_pool_aaa = generate_perturbed_pool(
-        M=M_aaa, a_grid=bin_idxs, N_pool)
+        M=M_aaa, a_grid=bin_idxs, N_pool=N_pool)
     print("perturbation pools generated for aaa estimator.")
     q_true = histo_true/data.size
-    
+    print('true q=',q_true)
+
     var_aaa = utilities.M_to_var(M_aaa,bin_idxs,bin_idxs,q_true)
     
     var_est = utilities.M_to_var(M_est,a_grid,bin_idxs,q_true)
@@ -111,7 +112,8 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
                                 repeat=test_repeat)
     q_aaa = (q_aaa*test_repeat+q_est_initial*est_repeat)/(
         test_repeat+est_repeat)
-    wass_aaa = utilities.wass_dist(q_aaa,q_true)/test_repeat
+    print('aaa estimated q=',q_aaa)
+    wass_aaa = utilities.wass_dist(q_aaa,q_true)
 
     q_est = estimate_distribution(eps=eps,est_type=est_type,
                                 M=M_est,
@@ -120,7 +122,8 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
                                 repeat=test_repeat)
     q_est = (q_est*test_repeat+q_est_initial*est_repeat)/(
         test_repeat+est_repeat)
-    wass_est = utilities.wass_dist(q_est,q_true)/test_repeat
+    print('%s estimated q=' %(est_type), q_est)
+    wass_est = utilities.wass_dist(q_est,q_true)
 
     print('estimation complete, repeat %d times.\n' %(test_repeat))
     return var_aaa, var_est, wass_aaa, wass_est
