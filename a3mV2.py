@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sp
 from scipy.optimize import linprog
 
-def OptVariance(eps,x_grid,x_q): # the optimization problem
+def opt_variance(eps,x_grid,x_q): # the optimization problem
     a_grid = x_grid # we may change this in later update version
     da = a_grid.size
     dx = x_grid.size

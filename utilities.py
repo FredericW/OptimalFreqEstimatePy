@@ -1,7 +1,6 @@
 import numpy as np
-import pandas as pd
 
-def SquareWave(eps, x_grid):
+def square_wave(eps, x_grid):
     d = len(x_grid)
     x_step_size = x_grid[1]-x_grid[0]
     b = int(np.floor((eps*np.exp(eps)-np.exp(eps)+1)/
@@ -15,7 +14,7 @@ def SquareWave(eps, x_grid):
     a_grid = x_step_size*np.arange(-b,d+b)
     return a_grid, M
 
-def GenRandResp(eps,x_grid):
+def general_rr(eps,x_grid):
     d = len(x_grid)
     p = np.exp(eps)/(np.exp(eps)+d-1)
     q = p/np.exp(eps)
@@ -40,7 +39,7 @@ def EM(M, a_count, eps):
         L_p=L
     return p
 
-def M2Var(M,a_grid,x_grid,x_q):
+def M_to_var(M,a_grid,x_grid,x_q):
     dx = x_grid.size
     da = a_grid.size
     Xsq = np.zeros((da,dx))
@@ -49,13 +48,13 @@ def M2Var(M,a_grid,x_grid,x_q):
     var = np.sum(Xsq*M)
     return var
     
-def WassDist(p1,p2):
-    P_1 = Pmf2Cmf(p1)
-    P_2 = Pmf2Cmf(p2)
+def wass_dist(p1,p2):
+    P_1 = pmf_to_cmf(p1)
+    P_2 = pmf_to_cmf(p2)
     dist = np.sum(np.abs(P_1-P_2))
     return dist
 
-def Pmf2Cmf(pmf):
+def pmf_to_cmf(pmf):
     cmf = pmf.copy()
     for i in range(len(pmf)):
         cmf[i] = cmf[i-1]+cmf[i]

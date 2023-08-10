@@ -1,10 +1,10 @@
 import numpy as np
-import time
-import random
+import utilities
+from a3mV2 import opt_variance
 
-def generate_synthetic_data(data_type="GAUSSIAN", n=100000, low=0, high=1, beta=1):
+def generate_synthetic_data(data_type="GAUSSIAN", 
+                            n=100000, low=0, high=1, beta=1):
     # generate data
-
     if data_type == "GAUSSIAN":
         data = np.random.normal(0, 1.0, n)
     elif data_type == "EXPONENTIAL":
@@ -39,3 +39,88 @@ def generate_synthetic_data(data_type="GAUSSIAN", n=100000, low=0, high=1, beta=
     b = beta - beta*high / (high-low)
     mapped_data = a*clipped_data + b
     return mapped_data
+
+
+
+def generate_perturbed_pool(M, a_grid, N_pool):
+    _,dx =M.shape
+    perturbed_pool = np.zeros((N,dx))
+    for j in range(dx):
+        p=M[:,j]/np.sum(M[:,j])
+        perturbed_pool[:,j] = np.random.choice(a=a_grid,p=p,size=N_pool)
+    return perturbed_pool
+
+
+
+def estimate_distribution(eps,est_type,M,histo_true,pool,repeat):
+    q_est = np.zeros((1,histo_true.size))
+    for k in np.arange(repeat):
+        data_perturbed=[]
+        for i in np.arange(len(histo_true)):
+            temp = np.random.choice(a = pool[:,i], size = histo_true[i])
+            data_perturbed = np.concatenate((data_perturbed,temp))
+        a_grid,hist_perturbed = np.unique(data_perturbed,return_counts=True)
+        if est_type!="aaa":
+            temp = utilities.EM(M,hist_perturbed,eps)
+        else:
+            temp = hist_perturbed/data_perturbed.size
+        q_est +=temp
+    q_est = q_est/repeat
+    return q_est
+
+
+
+def DP_dist_estimation(data, bins, bin_idxs, range, 
+                       est_type, eps, est_repeat, test_repeat,N_pool=10000):
+    print('eps=',eps)
+    histo_true,_ = np.histogram(a=data, range=range, bins=bins)
+
+    if est_type == 'sw':
+        a_grid, M_est = utilities.square_wave(eps,bin_idxs)
+    elif est_type == 'grr':
+        a_grid, M_est = utilities.general_rr(eps,bin_idxs)
+    else:
+        raise NotImplementedError()
+    perturbed_pool_est = generate_perturbed_pool(
+        M=M_est, a_grid=a_grid, N_pool=N_pool)
+    print("perturbation pools generated for %s estimator." %(est_type))
+
+    q_est_initial = estimate_distribution(eps=eps,est_type=est_type,
+                                M=M_est,
+                                histo_true=histo_true, 
+                                pool=perturbed_pool_est,
+                                repeat=est_repeat)
+    print("distribution estimated by %s, repeat %d times." %(
+        est_type, est_repeat))
+    _, M_aaa = opt_variance(eps, bin_idxs, q_est_initial)
+    print('AAA solution found.')
+
+    perturbed_pool_aaa = generate_perturbed_pool(
+        M=M_aaa, a_grid=bin_idxs, N_pool)
+    print("perturbation pools generated for aaa estimator.")
+    q_true = histo_true/data.size
+    
+    var_aaa = utilities.M_to_var(M_aaa,bin_idxs,bin_idxs,q_true)
+    
+    var_est = utilities.M_to_var(M_est,a_grid,bin_idxs,q_true)
+
+    q_aaa = estimate_distribution(eps=eps,est_type="aaa",
+                                M=M_aaa,
+                                histo_true=histo_true, 
+                                pool=perturbed_pool_aaa,
+                                repeat=test_repeat)
+    q_aaa = (q_aaa*test_repeat+q_est_initial*est_repeat)/(
+        test_repeat+est_repeat)
+    wass_aaa = utilities.wass_dist(q_aaa,q_true)/test_repeat
+
+    q_est = estimate_distribution(eps=eps,est_type=est_type,
+                                M=M_est,
+                                histo_true=histo_true, 
+                                pool=perturbed_pool_est,
+                                repeat=test_repeat)
+    q_est = (q_est*test_repeat+q_est_initial*est_repeat)/(
+        test_repeat+est_repeat)
+    wass_est = utilities.wass_dist(q_est,q_true)/test_repeat
+
+    print('estimation complete, repeat %d times.\n' %(test_repeat))
+    return var_aaa, var_est, wass_aaa, wass_est
