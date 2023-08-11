@@ -21,6 +21,8 @@ def opt_variance(eps,x_grid,x_q): # the optimization problem
                     A = np.reshape(A,(1,dx*da))
                     A_ub[counter,:] = A
                     counter+=1
+
+
     b_ub = np.zeros((1,da*dx*(dx-1))) # limit vector
 
     # the equality constraints
@@ -44,5 +46,8 @@ def opt_variance(eps,x_grid,x_q): # the optimization problem
     # limites
     bounds = list(zip(np.zeros(da*dx),np.ones(da*dx)))
     res = linprog(C, A_ub=A_ub, b_ub=b_ub, A_eq = A_eq, b_eq = b_eq, bounds=bounds)
-    M = np.reshape(res.x,(da,dx))
+    if res.success == True:
+        M = np.reshape(res.x,(da,dx))
+        print("AAA solution found!")
+    
     return a_grid, M

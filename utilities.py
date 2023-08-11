@@ -25,7 +25,7 @@ def general_rr(eps,x_grid):
     return x_grid, M
 
 def EM(M, a_count, eps):
-    tau = 1e-3*np.exp(eps)
+    tau = 1e-4*np.exp(eps)
     da,dx= M.shape
     a_count=np.reshape(a_count, (1,da))
     p = np.ones((1,dx))/dx
@@ -55,8 +55,8 @@ def wass_dist(p1,p2):
     return dist
 
 def pmf_to_cmf(pmf):
-    cmf = pmf.copy()
-    for i in range(len(pmf)):
+    cmf = pmf.flatten()
+    for i in range(len(cmf)):
         cmf[i] = cmf[i-1]+cmf[i]
     return cmf
 
