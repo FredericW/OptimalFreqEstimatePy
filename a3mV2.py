@@ -46,8 +46,5 @@ def opt_variance(eps,x_grid,x_q): # the optimization problem
     # limites
     bounds = list(zip(np.zeros(da*dx),np.ones(da*dx)))
     res = linprog(C, A_ub=A_ub, b_ub=b_ub, A_eq = A_eq, b_eq = b_eq, bounds=bounds)
-    if res.success == True:
-        M = np.reshape(res.x,(da,dx))
-        print("AAA solution found!")
     
-    return a_grid, M
+    return a_grid, res

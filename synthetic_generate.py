@@ -56,7 +56,9 @@ def generate_perturbed_pool(M, a_grid, N_pool):
 
 def estimate_distribution(eps,est_type,M,histo_true,pool,repeat):
     q_est = np.zeros((1,histo_true.size))
-    for k in np.arange(repeat):
+    q_true = histo_true/np.sum(histo_true)
+    wass_est = 0
+    for _ in np.arange(repeat):
         data_perturbed=[]
         for i in np.arange(len(histo_true)):
             temp = np.random.choice(a = pool[:,i], size = histo_true[i])
@@ -67,14 +69,16 @@ def estimate_distribution(eps,est_type,M,histo_true,pool,repeat):
         else:
             temp = hist_perturbed/data_perturbed.size
         q_est +=temp
+        wass_est += utilities.wass_dist(temp,q_true)
     q_est = q_est/repeat
-    return q_est
+    wass_est = wass_est/repeat
+    return q_est, wass_est
 
 
 
 def DP_dist_estimation(data, bins, bin_idxs, range, 
                        est_type, eps, est_repeat, test_repeat):
-    print('eps=',eps)
+    print('computing for eps=',eps)
     histo_true,_ = np.histogram(a=data, range=range, bins=bins)
     N_pool = bins*10000
     if est_type == 'sw':
@@ -86,13 +90,17 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     perturbed_pool_est = generate_perturbed_pool(
         M=M_est, a_grid=a_grid, N_pool=N_pool)
 
-    q_est_initial = estimate_distribution(eps=eps,est_type=est_type,
+    q_est_initial,_ = estimate_distribution(eps=eps,est_type=est_type,
                                 M=M_est,
                                 histo_true=histo_true, 
                                 pool=perturbed_pool_est,
                                 repeat=est_repeat)
+    print('intitial estimation with %s complete, repeat=%d.'%(est_type,est_repeat))
 
-    _, M_aaa = opt_variance(eps, bin_idxs, q_est_initial)
+    _, sol = opt_variance(eps, bin_idxs, q_est_initial)
+    if sol.success == True:
+        M_aaa = np.reshape(sol.x,(bins,bins))
+        print("AAA solution found!")
 
     perturbed_pool_aaa = generate_perturbed_pool(
         M=M_aaa, a_grid=bin_idxs, N_pool=N_pool)
@@ -103,25 +111,27 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     
     var_est = utilities.M_to_var(M_est,a_grid,bin_idxs,q_true)
 
-    q_aaa = estimate_distribution(eps=eps,est_type="aaa",
+    _,wass_aaa = estimate_distribution(eps=eps,est_type="aaa",
                                 M=M_aaa,
                                 histo_true=histo_true, 
                                 pool=perturbed_pool_aaa,
                                 repeat=test_repeat)
-    wass_aaa = utilities.wass_dist(q_aaa,q_true)
+ 
+    print('aaa estimation complete, repeat=%d.'%(test_repeat))
 
 
-    q_est = estimate_distribution(eps=eps,est_type=est_type,
+    _,wass_est = estimate_distribution(eps=eps,est_type=est_type,
                                 M=M_est,
                                 histo_true=histo_true, 
                                 pool=perturbed_pool_est,
                                 repeat=test_repeat)  
-    wass_est= utilities.wass_dist(q_est,q_true)
+
+    print('%s estimation complete, repeat=%d.'%(est_type,test_repeat))
     return var_aaa, var_est, wass_aaa, wass_est
 
 def DP_dist_estimation_batch(data, bins, bin_idxs, range, 
-                       est_type, eps, est_repeat, test_repeat, portion=0.1):
-    print('eps=',eps)
+                       est_type, eps, repeat, portion=0.1):
+    print('computing for eps=',eps)
     histo_true,_ = np.histogram(a=data, range=range, bins=bins)
     N_pool = bins*10000
     if est_type == 'sw':
@@ -133,38 +143,52 @@ def DP_dist_estimation_batch(data, bins, bin_idxs, range,
     perturbed_pool_est = generate_perturbed_pool(
         M=M_est, a_grid=a_grid, N_pool=N_pool)
     
-    data_batch = np.random.choice(a=data, replace=False, 
-                                  size = math.ceil(data.size*portion))
+    size = math.ceil(data.size*portion)
+
+    random_indx = np.random.choice(a=len(data), replace=False, size = size)
+    data_batch = data[random_indx]
     histo_batch,_ = np.histogram(a=data_batch, range=range, bins=bins)
-    q_est_initial = estimate_distribution(eps=eps,est_type=est_type,
-                                M=M_est,
-                                histo_true=histo_batch, 
-                                pool=perturbed_pool_est,
-                                repeat=est_repeat)
-
-    _, M_aaa = opt_variance(eps, bin_idxs, q_est_initial)
-
-    perturbed_pool_aaa = generate_perturbed_pool(
-        M=M_aaa, a_grid=bin_idxs, N_pool=N_pool)
+    data_rest = np.delete(data,random_indx)
+    histo_rest,_ =  np.histogram(a=data_rest, range=range, bins=bins)
     
-    q_true = histo_true/sum(histo_true)
+    temp_est = np.zeros((1,bins))
+    temp_aaa = np.zeros((1,bins))
+    temp2_est, temp2_aaa = 0,0
+    for i in np.arange(repeat):
+        q_est_initial,_ = estimate_distribution(eps=eps,est_type=est_type,
+                                    M=M_est,
+                                    histo_true=histo_batch, 
+                                    pool=perturbed_pool_est,
+                                    repeat=1)
 
-    var_aaa = utilities.M_to_var(M_aaa,bin_idxs,bin_idxs,q_true)
-    
-    var_est = utilities.M_to_var(M_est,a_grid,bin_idxs,q_true)
+        _, sol = opt_variance(eps, bin_idxs, q_est_initial)
+        if sol.success == True:
+            M_aaa = np.reshape(sol.x,(bins,bins))
 
-    q_aaa = estimate_distribution(eps=eps,est_type="aaa",
-                                M=M_aaa,
-                                histo_true=histo_true, 
-                                pool=perturbed_pool_aaa,
-                                repeat=test_repeat)
-    wass_aaa = utilities.wass_dist(q_aaa,q_true)
+        perturbed_pool_aaa = generate_perturbed_pool(
+            M=M_aaa, a_grid=bin_idxs, N_pool=N_pool)
+        q_true = histo_true/sum(histo_true)
 
+        var_aaa = utilities.M_to_var(M_aaa,bin_idxs,bin_idxs,q_true)
+        var_est = utilities.M_to_var(M_est,a_grid,bin_idxs,q_true)
 
-    q_est = estimate_distribution(eps=eps,est_type=est_type,
-                                M=M_est,
-                                histo_true=histo_true, 
-                                pool=perturbed_pool_est,
-                                repeat=test_repeat)  
-    wass_est= utilities.wass_dist(q_est,q_true)
+        q_aaa, wass_aaa = estimate_distribution(eps=eps,est_type="aaa",
+                                    M=M_aaa,
+                                    histo_true=histo_rest, 
+                                    pool=perturbed_pool_aaa,
+                                    repeat=1)
+        temp_aaa +=q_aaa
+        temp2_aaa+= wass_aaa
+
+        q_est, wass_est = estimate_distribution(eps=eps,est_type=est_type,
+                                    M=M_est,
+                                    histo_true=histo_rest, 
+                                    pool=perturbed_pool_est,
+                                    repeat=1)
+        temp_est += q_est
+        temp2_est+= wass_est
+    q_aaa = temp_aaa/repeat 
+    wass_aaa = temp2_aaa/repeat
+    q_est = temp_est/repeat
+    wass_est = temp2_est/repeat
     return var_aaa, var_est, wass_aaa, wass_est
