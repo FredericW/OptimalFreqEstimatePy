@@ -87,6 +87,10 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
         a_grid, M_est = utilities.general_rr(eps,bin_idxs)
     else:
         raise NotImplementedError()
+    
+    print('M_%s='%(est_type),M_est)
+    print('\n')
+
     perturbed_pool_est = generate_perturbed_pool(
         M=M_est, a_grid=a_grid, N_pool=N_pool)
 
