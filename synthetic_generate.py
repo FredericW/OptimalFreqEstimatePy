@@ -87,9 +87,6 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
         a_grid, M_est = utilities.general_rr(eps,bin_idxs)
     else:
         raise NotImplementedError()
-    
-    print('M_%s='%(est_type),M_est)
-    print('\n')
 
     perturbed_pool_est = generate_perturbed_pool(
         M=M_est, a_grid=a_grid, N_pool=N_pool)
@@ -133,7 +130,7 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     print('%s estimation complete, repeat=%d.'%(est_type,test_repeat))
     return var_aaa, var_est, wass_aaa, wass_est
 
-def DP_dist_estimation_batch(data, bins, bin_idxs, range, 
+def DP_dist_estimation_portions(data, bins, bin_idxs, range, 
                        est_type, eps, repeat, portion=0.1):
     print('computing for eps=',eps)
     histo_true,_ = np.histogram(a=data, range=range, bins=bins)
@@ -148,22 +145,30 @@ def DP_dist_estimation_batch(data, bins, bin_idxs, range,
         M=M_est, a_grid=a_grid, N_pool=N_pool)
     
     size = math.ceil(data.size*portion)
+    np.random.shuffle(data)
 
-    random_indx = np.random.choice(a=len(data), replace=False, size = size)
-    data_batch = data[random_indx]
-    histo_batch,_ = np.histogram(a=data_batch, range=range, bins=bins)
-    data_rest = np.delete(data,random_indx)
+    n_batch = 5
+    size_batch = math.ceil(size/n_batch)
+    data_rest = data[size:-1]
     histo_rest,_ =  np.histogram(a=data_rest, range=range, bins=bins)
     
+    temp = np.zeros((1,bins))
     temp_est = np.zeros((1,bins))
     temp_aaa = np.zeros((1,bins))
     temp2_est, temp2_aaa = 0,0
     for i in np.arange(repeat):
-        q_est_initial,_ = estimate_distribution(eps=eps,est_type=est_type,
+        for j in np.arange(n_batch):
+            data_batch = data[j*size_batch:(j+1)*size_batch]
+            histo_batch,_ = np.histogram(a=data_batch, range=range, bins=bins)
+
+            q_est_initial,_ = estimate_distribution(eps=eps,est_type=est_type,
                                     M=M_est,
                                     histo_true=histo_batch, 
                                     pool=perturbed_pool_est,
                                     repeat=1)
+            temp+=q_est_initial
+        q_est_initial = temp/n_batch
+        print('intitial estimation with %s complete, portion=%.2f.'%(est_type,portion))
 
         _, sol = opt_variance(eps, bin_idxs, q_est_initial)
         if sol.success == True:
