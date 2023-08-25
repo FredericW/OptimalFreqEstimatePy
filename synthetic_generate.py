@@ -77,7 +77,7 @@ def estimate_distribution(eps,est_type,M,histo_true,pool,repeat):
 
 
 def DP_dist_estimation(data, bins, bin_idxs, range, 
-                       est_type, eps, est_repeat, test_repeat):
+                       est_type, eps, test_type, repeat, portion):
     print('computing for eps=',eps)
     histo_true,_ = np.histogram(a=data, range=range, bins=bins)
     N_pool = bins*10000
@@ -86,17 +86,36 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     elif est_type == 'grr':
         a_grid, M_est = utilities.general_rr(eps,bin_idxs)
     else:
-        raise NotImplementedError()
+        raise NotImplementedError('invalid est_type!')
 
     perturbed_pool_est = generate_perturbed_pool(
         M=M_est, a_grid=a_grid, N_pool=N_pool)
+    
+    if test_type == 'round':
+        data_est=data
+        histo_est = histo_true
+        repeat_est = math.ceil(repeat*portion)
+
+        data_test=data
+        histo_test = histo_true
+        repeat_test = repeat-repeat_est
+    elif test_type=='portion':
+        data_est = data[0:math.ceil(data.size*portion)]
+        histo_est,_ = np.histogram(a=data_est, range=range, bins=bins)
+        repeat_est = repeat
+        
+        data_test = data[math.ceil(data.size*portion):-1]
+        histo_test,_ =  np.histogram(a=data_test, range=range, bins=bins)
+        repeat_test = repeat
+    else:
+        raise NotImplementedError('invalid test_type!')
 
     q_est_initial,_ = estimate_distribution(eps=eps,est_type=est_type,
                                 M=M_est,
-                                histo_true=histo_true, 
+                                histo_true=histo_est, 
                                 pool=perturbed_pool_est,
-                                repeat=est_repeat)
-    print('intitial estimation with %s complete, repeat=%d.'%(est_type,est_repeat))
+                                repeat=repeat_est)
+    print('intitial estimation with %s complete, repeat=%d.'%(est_type,repeat_est))
 
     _, sol = opt_variance(eps, bin_idxs, q_est_initial)
     if sol.success == True:
@@ -114,90 +133,18 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
 
     _,wass_aaa = estimate_distribution(eps=eps,est_type="aaa",
                                 M=M_aaa,
-                                histo_true=histo_true, 
+                                histo_true=histo_test, 
                                 pool=perturbed_pool_aaa,
-                                repeat=test_repeat)
+                                repeat=repeat_test)
  
-    print('aaa estimation complete, repeat=%d.'%(test_repeat))
+    print('aaa estimation complete, repeat=%d.'%(repeat_test))
 
 
     _,wass_est = estimate_distribution(eps=eps,est_type=est_type,
                                 M=M_est,
-                                histo_true=histo_true, 
+                                histo_true=histo_test, 
                                 pool=perturbed_pool_est,
-                                repeat=test_repeat)  
+                                repeat=repeat_test)  
 
-    print('%s estimation complete, repeat=%d.'%(est_type,test_repeat))
-    return var_aaa, var_est, wass_aaa, wass_est
-
-def DP_dist_estimation_portions(data, bins, bin_idxs, range, 
-                       est_type, eps, repeat, portion=0.1):
-    print('computing for eps=',eps)
-    histo_true,_ = np.histogram(a=data, range=range, bins=bins)
-    N_pool = bins*10000
-    if est_type == 'sw':
-        a_grid, M_est = utilities.square_wave(eps,bin_idxs)
-    elif est_type == 'grr':
-        a_grid, M_est = utilities.general_rr(eps,bin_idxs)
-    else:
-        raise NotImplementedError()
-    perturbed_pool_est = generate_perturbed_pool(
-        M=M_est, a_grid=a_grid, N_pool=N_pool)
-    
-    size = math.ceil(data.size*portion)
-    np.random.shuffle(data)
-
-    n_batch = 5
-    size_batch = math.ceil(size/n_batch)
-    data_rest = data[size:-1]
-    histo_rest,_ =  np.histogram(a=data_rest, range=range, bins=bins)
-    
-    temp = np.zeros((1,bins))
-    temp_est = np.zeros((1,bins))
-    temp_aaa = np.zeros((1,bins))
-    temp2_est, temp2_aaa = 0,0
-    for i in np.arange(repeat):
-        for j in np.arange(n_batch):
-            data_batch = data[j*size_batch:(j+1)*size_batch]
-            histo_batch,_ = np.histogram(a=data_batch, range=range, bins=bins)
-
-            q_est_initial,_ = estimate_distribution(eps=eps,est_type=est_type,
-                                    M=M_est,
-                                    histo_true=histo_batch, 
-                                    pool=perturbed_pool_est,
-                                    repeat=1)
-            temp+=q_est_initial
-        q_est_initial = temp/n_batch
-        print('intitial estimation with %s complete, portion=%.2f.'%(est_type,portion))
-
-        _, sol = opt_variance(eps, bin_idxs, q_est_initial)
-        if sol.success == True:
-            M_aaa = np.reshape(sol.x,(bins,bins))
-
-        perturbed_pool_aaa = generate_perturbed_pool(
-            M=M_aaa, a_grid=bin_idxs, N_pool=N_pool)
-        q_true = histo_true/sum(histo_true)
-
-        var_aaa = utilities.M_to_var(M_aaa,bin_idxs,bin_idxs,q_true)
-        var_est = utilities.M_to_var(M_est,a_grid,bin_idxs,q_true)
-
-        q_aaa, wass_aaa = estimate_distribution(eps=eps,est_type="aaa",
-                                    M=M_aaa,
-                                    histo_true=histo_rest, 
-                                    pool=perturbed_pool_aaa,
-                                    repeat=1)
-        temp_aaa +=q_aaa
-        temp2_aaa+= wass_aaa
-
-        q_est, wass_est = estimate_distribution(eps=eps,est_type=est_type,
-                                    M=M_est,
-                                    histo_true=histo_rest, 
-                                    pool=perturbed_pool_est,
-                                    repeat=1)
-        temp_est += q_est
-        temp2_est+= wass_est
-    q_aaa = temp_aaa/repeat 
-    wass_aaa = temp2_aaa/repeat
-    q_est = temp_est/repeat
-    wass_est = temp2_est/repeat
+    print('%s estimation complete, repeat=%d.'%(est_type,repeat_test))
     return var_aaa, var_est, wass_aaa, wass_est
