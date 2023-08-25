@@ -91,19 +91,17 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     perturbed_pool_est = generate_perturbed_pool(
         M=M_est, a_grid=a_grid, N_pool=N_pool)
     
-    if test_type == 'round':
+    if test_type == 'rounds':
         data_est=data
         histo_est = histo_true
         repeat_est = math.ceil(repeat*portion)
-
         data_test=data
         histo_test = histo_true
         repeat_test = repeat-repeat_est
-    elif test_type=='portion':
+    elif test_type=='portions':
         data_est = data[0:math.ceil(data.size*portion)]
         histo_est,_ = np.histogram(a=data_est, range=range, bins=bins)
         repeat_est = repeat
-        
         data_test = data[math.ceil(data.size*portion):-1]
         histo_test,_ =  np.histogram(a=data_test, range=range, bins=bins)
         repeat_test = repeat
