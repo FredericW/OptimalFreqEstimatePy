@@ -80,7 +80,7 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
                        est_type, eps, test_type, repeat, portion):
     print('computing for eps=',eps)
     histo_true,_ = np.histogram(a=data, range=range, bins=bins)
-    N_pool = bins*10000
+    N_pool = 100000
     if est_type == 'sw':
         a_grid, M_est = utilities.square_wave(eps,bin_idxs)
     elif est_type == 'grr':
@@ -94,10 +94,10 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     if test_type == 'rounds':
         data_est=data
         histo_est = histo_true
-        repeat_est = math.ceil(repeat*portion)
-        data_test=data
+        repeat_est = repeat
+        data_test = data
         histo_test = histo_true
-        repeat_test = repeat-repeat_est
+        repeat_test = repeat
     elif test_type=='portions':
         data_est = data[0:math.ceil(data.size*portion)]
         histo_est,_ = np.histogram(a=data_est, range=range, bins=bins)
@@ -113,7 +113,7 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
                                 histo_true=histo_est, 
                                 pool=perturbed_pool_est,
                                 repeat=repeat_est)
-    print('intitial estimation with %s complete, repeat=%d.'%(est_type,repeat_est))
+    print('intitial estimation complete')
 
     _, sol = opt_variance(eps, bin_idxs, q_est_initial)
     if sol.success == True:
@@ -135,7 +135,7 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
                                 pool=perturbed_pool_aaa,
                                 repeat=repeat_test)
  
-    print('aaa estimation complete, repeat=%d.'%(repeat_test))
+    print('aaa estimation complete')
 
 
     _,wass_est = estimate_distribution(eps=eps,est_type=est_type,
