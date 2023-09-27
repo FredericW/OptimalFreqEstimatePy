@@ -94,7 +94,7 @@ def DP_dist_estimation(data, bins, bin_idxs, range,
     if test_type == 'rounds':
         data_est=data
         histo_est = histo_true
-        repeat_est = repeat
+        repeat_est = 100
         data_test = data
         histo_test = histo_true
         repeat_test = repeat
