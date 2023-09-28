@@ -54,14 +54,34 @@ def generate_perturbed_pool(M, a_grid, N_pool):
 
 
 
-def estimate_distribution(eps,est_type,M,histo_true,pool,repeat):
-    q_est = np.zeros((1,histo_true.size))
+
+def DP_dist_estimation(histo_true, bin_idxs, est_type, eps, repeat, q_est):
+    bins = np.size(bin_idxs)
     q_true = histo_true/np.sum(histo_true)
+    N_pool = 100000
+    if est_type == 'sw':
+        a_grid, M = utilities.square_wave(eps,bin_idxs)
+    elif est_type == 'grr':
+        a_grid, M = utilities.general_rr(eps,bin_idxs)
+    elif est_type=='aaa':
+        a_grid=bin_idxs
+        _, sol = opt_variance(eps, a_grid, q_est)
+        if sol.success == True:
+            M = np.reshape(sol.x,(bins,bins))
+    else:
+        raise NotImplementedError('invalid est_type!')
+
+    perturbed_pool = generate_perturbed_pool(
+        M=M, a_grid=a_grid, N_pool=N_pool)
+    
+    mse_est = utilities.M_to_var(M,a_grid,bin_idxs,q_true)
+
     wass_est = 0
+    q_est = np.zeros((1,histo_true.size))
     for _ in np.arange(repeat):
         data_perturbed=[]
         for i in np.arange(len(histo_true)):
-            temp = np.random.choice(a = pool[:,i], size = histo_true[i])
+            temp = np.random.choice(a = perturbed_pool[:,i], size = histo_true[i])
             data_perturbed = np.concatenate((data_perturbed,temp))
         _,hist_perturbed = np.unique(data_perturbed,return_counts=True)
         if est_type!="aaa":
@@ -72,77 +92,5 @@ def estimate_distribution(eps,est_type,M,histo_true,pool,repeat):
         wass_est += utilities.wass_dist(temp,q_true)
     q_est = q_est/repeat
     wass_est = wass_est/repeat
-    return q_est, wass_est
 
-
-
-def DP_dist_estimation(data, bins, bin_idxs, range, 
-                       est_type, eps, test_type, repeat, portion):
-    print('computing for eps=',eps)
-    histo_true,_ = np.histogram(a=data, range=range, bins=bins)
-    N_pool = 100000
-    if est_type == 'sw':
-        a_grid, M_est = utilities.square_wave(eps,bin_idxs)
-    elif est_type == 'grr':
-        a_grid, M_est = utilities.general_rr(eps,bin_idxs)
-    else:
-        raise NotImplementedError('invalid est_type!')
-
-    perturbed_pool_est = generate_perturbed_pool(
-        M=M_est, a_grid=a_grid, N_pool=N_pool)
-    
-    if test_type == 'rounds':
-        data_est=data
-        histo_est = histo_true
-        repeat_est = 100
-        data_test = data
-        histo_test = histo_true
-        repeat_test = repeat
-    elif test_type=='portions':
-        data_est = data[0:math.ceil(data.size*portion)]
-        histo_est,_ = np.histogram(a=data_est, range=range, bins=bins)
-        repeat_est = repeat
-        data_test = data[math.ceil(data.size*portion):-1]
-        histo_test,_ =  np.histogram(a=data_test, range=range, bins=bins)
-        repeat_test = repeat
-    else:
-        raise NotImplementedError('invalid test_type!')
-
-    q_est_initial,_ = estimate_distribution(eps=eps,est_type=est_type,
-                                M=M_est,
-                                histo_true=histo_est, 
-                                pool=perturbed_pool_est,
-                                repeat=repeat_est)
-    print('intitial estimation complete')
-
-    _, sol = opt_variance(eps, bin_idxs, q_est_initial)
-    if sol.success == True:
-        M_aaa = np.reshape(sol.x,(bins,bins))
-        print("AAA solution found!")
-
-    perturbed_pool_aaa = generate_perturbed_pool(
-        M=M_aaa, a_grid=bin_idxs, N_pool=N_pool)
-    
-    q_true = histo_true/sum(histo_true)
-
-    var_aaa = utilities.M_to_var(M_aaa,bin_idxs,bin_idxs,q_true)
-    
-    var_est = utilities.M_to_var(M_est,a_grid,bin_idxs,q_true)
-
-    _,wass_aaa = estimate_distribution(eps=eps,est_type="aaa",
-                                M=M_aaa,
-                                histo_true=histo_test, 
-                                pool=perturbed_pool_aaa,
-                                repeat=repeat_test)
- 
-    print('aaa estimation complete')
-
-
-    _,wass_est = estimate_distribution(eps=eps,est_type=est_type,
-                                M=M_est,
-                                histo_true=histo_test, 
-                                pool=perturbed_pool_est,
-                                repeat=repeat_test)  
-
-    print('%s estimation complete, repeat=%d.'%(est_type,repeat_test))
-    return var_aaa, var_est, wass_aaa, wass_est
+    return mse_est, wass_est, q_est
