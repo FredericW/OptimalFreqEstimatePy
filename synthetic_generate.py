@@ -49,7 +49,9 @@ def generate_perturbed_pool(M, a_grid, N_pool):
     perturbed_pool = np.zeros((N_pool,dx))
     for j in range(dx):
         p=M[:,j]/np.sum(M[:,j])
-        perturbed_pool[:,j] = np.random.choice(a=a_grid,p=p,size=N_pool)
+        uni_noise = np.random.uniform(low=-1/2/dx,high = 1/2/dx,size=N_pool)
+        grid_noise = np.random.choice(a=a_grid,p=p,size=N_pool)+np.random.uniform(low=-1/2/dx,high = 1/2/dx,size=N_pool)
+        perturbed_pool[:,j] = uni_noise + grid_noise
     return perturbed_pool
 
 
