@@ -57,13 +57,13 @@ def M_to_pool(M, a_grid, N_pool):
 
 
 
-def DP_dist_estimation(data, bin_max, d_est, est_type, eps, repeat):
+def DP_dist_estimation(data, bin_max, bin_num, est_type, eps, repeat):
     # set the bins for histogram
     beta=1
-    bin_idxs_est = np.linspace(beta/d_est/2, beta-beta/d_est/2, d_est)
+    bin_idxs_est = np.linspace(beta/bin_num/2, beta-beta/bin_num/2, bin_num)
 
     # obtain the histogram and frequency
-    histo_true_est,_ = np.histogram(a=data, range=(0,bin_max), bins=d_est)
+    histo_true_est,_ = np.histogram(a=data, range=(0,bin_max), bins=bin_num)
     q_true = histo_true_est/np.sum(histo_true_est)
 
     # generate the transition prbability matrix
@@ -83,7 +83,7 @@ def DP_dist_estimation(data, bin_max, d_est, est_type, eps, repeat):
         M=M, a_grid=a_grid, N_pool=N_pool)
 
     wass_est = 0
-    q_est = np.zeros((1,d_est))
+    q_est = np.zeros((1,bin_num))
 
     for _ in np.arange(repeat):
         data_perturbed=[]
@@ -102,20 +102,20 @@ def DP_dist_estimation(data, bin_max, d_est, est_type, eps, repeat):
 
 
 
-def DP_dist_estimation_aaa(data, bin_max, d_est, d_test, eps, repeat, q_est):
+def DP_dist_estimation_aaa(data, bin_max, bin_num, bin_num_test, eps, repeat, q_est):
     # set the bins for histogram
     beta=1
-    bin_idxs_est = np.linspace(beta/d_est/2, beta-beta/d_est/2, d_est)
+    bin_idxs_est = np.linspace(beta/bin_num/2, beta-beta/bin_num/2, bin_num)
 
     # obtain the histogram and frequency
-    histo_true_est,_ = np.histogram(a=data, range=(0,bin_max), bins=d_est)
+    histo_true_est,_ = np.histogram(a=data, range=(0,bin_max), bins=bin_num)
     q_true = histo_true_est/np.sum(histo_true_est)
 
     # generate the transition prbability matrix
     N_pool = 100000
     a_grid=bin_idxs_est
     _, sol = opt_variance(eps, a_grid, q_est)
-    M = np.reshape(sol.x,(d_est,d_est))
+    M = np.reshape(sol.x,(bin_num,bin_num))
     
     # compute the mean square error
     mse_est = utilities.M_to_var(M,a_grid,bin_idxs_est,q_true)
@@ -125,9 +125,9 @@ def DP_dist_estimation_aaa(data, bin_max, d_est, d_test, eps, repeat, q_est):
         M=M, a_grid=a_grid, N_pool=N_pool)
 
     wass_est = 0
-    q_est = np.zeros((1,d_test))
+    q_est = np.zeros((1,bin_num_test))
 
-    histo_true_test,_ = np.histogram(a=data, range=(0,bin_max), bins=d_test)
+    histo_true_test,_ = np.histogram(a=data, range=(0,bin_max), bins=bin_num_test)
     q_true = histo_true_test/np.sum(histo_true_test)
     for _ in np.arange(repeat):
         data_perturbed=[]
@@ -135,8 +135,8 @@ def DP_dist_estimation_aaa(data, bin_max, d_est, d_test, eps, repeat, q_est):
             temp = np.random.choice(a = perturbed_pool[:,i], size = histo_true_est[i])
             data_perturbed = np.concatenate((data_perturbed,temp))
 
-        hist_perturbed,_ = np.histogram(a=data_perturbed, range=(min(data_perturbed),max(data_perturbed)), 
-                                        bins=np.size(a_grid))
+        hist_perturbed,_ = np.histogram(a=data_perturbed, range=(0,beta), 
+                                        bins=bin_num_test)
         
         temp = hist_perturbed/data_perturbed.size
         q_est +=temp
